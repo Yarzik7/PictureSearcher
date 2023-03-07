@@ -2,7 +2,6 @@ import { fetchImages } from './js/fetchImages';
 import { notifyFailure, notifySuccsess, notifyInfo } from './js/notifyFunc';
 import { createImageNode } from './js/createImageNode';
 import SimpleLightbox from 'simplelightbox';
-import { infiniteScroll } from './js/infiniteScroll';
 
 import 'simplelightbox/dist/simple-lightbox.min.css';
 
@@ -13,7 +12,6 @@ const galleryEl = document.querySelector('.gallery');
 
 let simpleLB = new SimpleLightbox('.gallery a'); // Ініціалізація SimpleLightbox
 let page = 1; // Представляє номер сторінки для завантаження
-let isLoading = false; // Стан завантаження даних
 let inputText = ''; // Зображення чого потрібно знайти
 let perPage = 40; // Кількість зображень на одну сторінку
 
@@ -43,14 +41,11 @@ const promiseProcessing = imagesSet => {
   // Якщо не знайдено жодного зображення за запитом
   if (!totalHits) {
     notifyFailure(5000);
-    isLoading = false;
-    window.removeEventListener('scroll', infiniteScroll);
     return;
   } else if (hits.length < perPage || totalHits / perPage === page) {
     // Якщо завантажені всі знайдені зображення
     notifyInfo(5000);
     loadMoreEl.style.display = 'none';
-    window.removeEventListener('scroll', infiniteScroll);
   } else {
     // Якщо завантажений черговий набір інформації про зображення
     loadMoreEl.style.display = 'inline-block';
@@ -61,7 +56,6 @@ const promiseProcessing = imagesSet => {
   const galleryNodes = hits.map(imageInfo => createImageNode(imageInfo)); // Створення розмітки для одного зображення
   galleryEl.insertAdjacentHTML('beforeend', galleryNodes.join('')); // Рендер розмітки з зображеннями
   simpleLB.refresh(); // Повторна ініціалізація SimpleLightbox
-  isLoading = false;
   if (page > 2) smoothScroll(); // Плавний скрол вниз на 2 висоти елемента галереї
 };
 
@@ -70,13 +64,9 @@ const promiseProcessing = imagesSet => {
  * @param {string} request
  */
 const callFetch = request => {
-  isLoading = true;
   fetchImages(request, page, perPage)
     .then(imagesSet => promiseProcessing(imagesSet.data))
-    .catch(error => {
-      console.log(error);
-      isLoading = false;
-    });
+    .catch(error => console.log(error));
 };
 
 /**
@@ -95,7 +85,7 @@ const onSubmit = event => {
   page = 1;
   inputText = '';
 
-  inputText = event.currentTarget.elements.searchQuery.value;
+  inputText = event.currentTarget.elements.searchQuery.value; // Отримує інформацію про зображення з поля введення
 
   // Якщо інформація для запиту не була введена (пусте поле)
   if (!inputText) {
@@ -103,7 +93,6 @@ const onSubmit = event => {
     return;
   }
 
-  window.addEventListener('scroll', infiniteScroll);
   callFetch(inputText); // Передача нової інформації для запиту
   form.reset();
 };
@@ -114,16 +103,6 @@ const onSubmit = event => {
 const onClick = () => {
   loadMoreEl.style.display = 'none';
   callFetch(inputText); // Передача попередньої інформації для запиту
-};
-
-/**
- * Завантажує зображення при скролі
- */
-const infiniteScroll = () => {
-  const { scrollTop, scrollHeight, clientHeight } = document.documentElement;
-  if (scrollTop + clientHeight >= scrollHeight - 500 && !isLoading) {
-    onClick();
-  }
 };
 
 form.addEventListener('submit', onSubmit);
